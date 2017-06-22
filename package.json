@@ -1,0 +1,30 @@
+{
+  "name": "allex_nodehelpersserverruntimelib",
+  "version": "1.0.0",
+  "description": "AllexJS nodejs helpers",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/allex-serverruntime-libs/nodehelpers.git"
+  },
+  "dependencies": {
+    "mkdirp": "0.x",
+    "colors": "1.x"
+  },
+  "keywords": [
+    "ecosystem:AllexJS",
+    "server",
+    "runtime",
+    "nodejs",
+    "helpers"
+  ],
+  "author": "Andrija Petrovic <andrija.hers@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/allex-serverruntime-libs/nodehelpers/issues"
+  },
+  "homepage": "https://github.com/allex-serverruntime-libs/nodehelpers#readme"
+}
