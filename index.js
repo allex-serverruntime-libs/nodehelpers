@@ -3,14 +3,41 @@ var CWD_HISTORY = [],
   Os = require('os'), 
   Fs = require('fs'),
   Colors = require('colors/safe'), 
-  lib = require('allexlib'),
-  Q = lib.q,
   mkdirp = require('mkdirp'),
   Child_process = require('child_process'),
   BunyanLogger = require('allex_bunyanloggerserverruntimelib'),
   inspect = require('util').inspect,
   executeCommand,
-  ensureDir;
+  ensureDir,
+  update_or_get_field;
+
+function CommandError (command, err, stderr, stdout) {
+  this.command = command;
+  this.error = error;
+  this.stderr = stderr;
+  this.stdout = stdout;
+}
+
+CommandError.prototype.toString = function () {
+  return this.command+' failed '+this.stderr;
+};
+
+function commandResponse (command, d, error, stdout, stderr) {
+  if (error) {
+    d.reject(new CommandError(
+      command,
+      error,
+      stderr,
+      stdout
+    ));
+  }else{
+    d.resolve({stdout:stdout, stderr: stderr});
+  }
+}
+
+function executeCommandSync (command, options) {
+  return Child_process.execSync(command, options || {});
+}
 
 var SystemRoot = (Os.platform === "win32") ? process.cwd().split(Path.sep)[0] : "/",
   HomeDir = process.env[(process.platform === 'win32') ? 'USERPROFILE' : 'HOME'],
@@ -60,6 +87,13 @@ function warn() {
   log.call(null, Colors.yellow, arguments);
 }
 
+function throwerror(err) {
+  error(err);
+  if (!(err instanceof Error)) {
+    err = Error(err);
+  }
+  throw err;
+}
 
 function exit (e, code) {
   error(e);
@@ -71,10 +105,6 @@ function cwdStore() {
 }
 function cwdStepBack() {
   process.chdir (CWD_HISTORY.pop());
-}
-
-function getRoot () {
-  return SystemRoot;
 }
 
 function isPathAbsolute (p) {
@@ -156,6 +186,18 @@ function removeDirIfEmpty(p) {
   }
 }
 
+function ensureDirSync (dir) {
+  if (dirExists(dir)) return;
+  return mkdirp.sync(dir);
+}
+
+function recreateDir (dir) {
+  if (dirExists(dir)) {
+    Fs.removeSync(dir);
+  }
+  ensureDirSync(dir);
+}
+
 function readJSONSync(path) {
   //options may be introduced in form of {throws: true/false}
   var json = Fs.readFileSync(path); //because this may throw hard
@@ -172,44 +214,14 @@ function packageRead (should_goto, should_store, current) {
   return readJSONSync(p);
 }
 
-function CommandError (command, err, stderr, stdout) {
-  this.command = command;
-  this.error = error;
-  this.stderr = stderr;
-  this.stdout = stdout;
-}
 
-CommandError.prototype.toString = function () {
-  return this.command+' failed '+this.stderr;
-};
 
-function commandResponse (command, d, error, stdout, stderr) {
-  if (error) {
-    d.reject(new CommandError(
-      command,
-      error,
-      stderr,
-      stdout
-    ));
-  }else{
-    d.resolve({stdout:stdout, stderr: stderr});
-  }
-}
 
-function executeCommandSync (command, options) {
-  return Child_process.execSync(command, options || {});
-}
 
-function ensureDirSync (dir) {
-  if (dirExists(dir)) return;
-  return mkdirp.sync(dir);
-}
-
-function recreateDir (dir) {
-  if (dirExists(dir)) {
-    Fs.removeSync(dir);
-  }
-  ensureDirSync(dir);
+function getJsonParams (options) {
+  if (!options) options = {spaces: 2};
+  if (!options.spaces) options.spaces = 2;
+  return options;
 }
 
 function ext_matches (ext, filename){
@@ -223,6 +235,7 @@ function ext_matches (ext, filename){
 
   return extname === ext;
 }
+
 function readDirExtOnly (dir, ext) {
   if (!dirExists(dir)) throwerror ('Missing dir '+dir);
   return Fs.readdirSync(dir).filter(ext_matches.bind(null, ext));
@@ -249,12 +262,6 @@ Fs.copySync = function (src, dst) {
   return executeCommandSync('cp -r '+src+' '+dst);
 }
 
-function getJsonParams (options) {
-  if (!options) options = {spaces: 2};
-  if (!options.spaces) options.spaces = 2;
-  return options;
-}
-
 Fs.writeJSONSync = function (file, data, options) {
   options = getJsonParams(options);
   return Fs.writeFileSync(file, JSON.stringify(data, null, options.spaces));
@@ -264,14 +271,6 @@ Fs.writeJSON = function (file, data, options, cb) {
   options = getJsonParams(options);
   return Fs.writeFile(file, JSON.stringify(data, null, options.spaces), cb);
 };
-
-function throwerror(err) {
-  error(err);
-  if (!(err instanceof Error)) {
-    err = Error(err);
-  }
-  throw err;
-}
 
 function isPathAbsolute (path) {
   //is not crossplatform at this moment ... supports unix systems only
@@ -295,6 +294,7 @@ function considerReading (ret, root, prefix, item) {
     ret.push (prefix ? Path.join (prefix, item) : item);
   }
 }
+
 
 function _readdirRecursively (root, prefix) {
   var ret = [];
@@ -320,86 +320,95 @@ function checkAndReadJSON (path) {
   return data;
 }
 
-function update_or_get_field (data, field, update) {
-  var resolved_path = [];
-  if (lib.isString(field)) field = field.split('.');
-  if (!lib.isArray(field)) throw new Error('Unable to resolve field, invalid format: '+field);
-  for (var i = 0; i < field.length; i++) {
-    if (!data[field[i]]) return {val: undefined, resolved_path: resolved_path.join('.'), last:data};
-    data = data[field[i]];
-    resolved_path.push (field[i]);
-  }
-
-  if (arguments.length >= 3) {
-    data = update;
-  }
-
-  return {val: data, resolved_path: resolved_path.join('.')};
-}
-
 function readFieldFromJSONFile (path, field){
   var data = checkAndReadJSON(path);
   if (!field) return data;
   return update_or_get_field(data, field).val;
 }
 
-function writeFieldToJSONFile (path, field, json_or_obj, force_creation) {
-  ///TODO: imas u lib-u ili negde slicno dot separated val ...
-  if (!field) throw new Error('No field given');
-  if (!json_or_obj) throw new Error('No data given');
 
-  if (lib.isString(json_or_obj)) {
-    try {
-      json_or_obj = JSON.parse(json_or_obj);
-    }catch (e) {
-      throw new Error('Invalid JSON: '+json_or_obj);
-    }
-  }
-  var or_data = checkAndReadJSON(path);
-  var ret = update_or_get_field(or_data, field, json_or_obj);
-  if (ret.resolved_path === field) {
-    Fs.writeJSONSync(path, or_data);
-    return ret.val;
-  }
 
-  if (!force_creation) return {
-    force_required: true,
-    resolved_path: ret.resolved_path,
-    val: ret.val
-  };
-  var fa = field,
-    f, td = or_data;
-  if (lib.isString(fa)) fa = fa.split('.');
 
-  while (fa.length > 1) {
-    f = fa.shift();
-    if (!(f in td)) td[f] = {};
-    if ('object' !== typeof(td[f])) throw new Error('Unable to extend non object field');
-    td = td[f];
-  }
-  td[fa[0]] = json_or_obj;
-  Fs.writeJSONSync(path, or_data);
-}
 
-function writeFieldToJSONFile2 (path, field, value) {
-  if (!field) return;
-  var data = checkAndReadJSON(path) || {};
-  var fa = field,
-    f, td = data;
-  if (lib.isString(fa)) fa = fa.split('.');
-
-  while (fa.length > 1) {
-    f = fa.shift();
-    if (!(f in td)) td[f] = {};
-    if ('object' !== typeof(td[f])) throw new Error('Unable to extend non object field');
-    td = td[f];
-  }
-  td[fa[0]] = value;
-  Fs.writeJSONSync(path, data);
-}
 
 
 function createNodeHelpers (lib) {
+  'use strict';
+
+  var Q = lib.q;
+
+  update_or_get_field = function (data, field, update) {
+    var resolved_path = [];
+    if (lib.isString(field)) field = field.split('.');
+    if (!lib.isArray(field)) throw new Error('Unable to resolve field, invalid format: '+field);
+    for (var i = 0; i < field.length; i++) {
+      if (!data[field[i]]) return {val: undefined, resolved_path: resolved_path.join('.'), last:data};
+      data = data[field[i]];
+      resolved_path.push (field[i]);
+    }
+
+    if (arguments.length >= 3) {
+      data = update;
+    }
+
+    return {val: data, resolved_path: resolved_path.join('.')};
+  }
+
+  function writeFieldToJSONFile (path, field, json_or_obj, force_creation) {
+    if (!field) throw new Error('No field given');
+    if (!json_or_obj) throw new Error('No data given');
+
+    if (lib.isString(json_or_obj)) {
+      try {
+        json_or_obj = JSON.parse(json_or_obj);
+      }catch (e) {
+        throw new Error('Invalid JSON: '+json_or_obj);
+      }
+    }
+    var or_data = checkAndReadJSON(path);
+    var ret = update_or_get_field(or_data, field, json_or_obj);
+    if (ret.resolved_path === field) {
+      Fs.writeJSONSync(path, or_data);
+      return ret.val;
+    }
+
+    if (!force_creation) return {
+      force_required: true,
+      resolved_path: ret.resolved_path,
+      val: ret.val
+    };
+    var fa = field,
+      f, td = or_data;
+    if (lib.isString(fa)) fa = fa.split('.');
+
+    while (fa.length > 1) {
+      f = fa.shift();
+      if (!(f in td)) td[f] = {};
+      if ('object' !== typeof(td[f])) throw new Error('Unable to extend non object field');
+      td = td[f];
+    }
+    td[fa[0]] = json_or_obj;
+    Fs.writeJSONSync(path, or_data);
+  }
+
+  function writeFieldToJSONFile2 (path, field, value) {
+    if (!field) return;
+    var data = checkAndReadJSON(path) || {};
+    var fa = field,
+      f, td = data;
+    if (lib.isString(fa)) fa = fa.split('.');
+
+    while (fa.length > 1) {
+      f = fa.shift();
+      if (!(f in td)) td[f] = {};
+      if ('object' !== typeof(td[f])) throw new Error('Unable to extend non object field');
+      td = td[f];
+    }
+    td[fa[0]] = value;
+    Fs.writeJSONSync(path, data);
+  }
+
+
   executeCommand = function (command, d, options, bridge_streams) {
     //console.log('About to execute command ', command, d, options);
     if (!d) d = Q.defer();
