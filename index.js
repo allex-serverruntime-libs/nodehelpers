@@ -2,6 +2,7 @@ var CWD_HISTORY = [],
   Path = require('path'), 
   Os = require('os'), 
   Fs = require('fs'),
+  _Path = {},
   Colors = require('colors/safe'), 
   mkdirp = require('mkdirp'),
   Child_process = require('child_process'),
@@ -456,9 +457,17 @@ function createNodeHelpers (lib) {
   Fs.writeFieldToJSONFile2 = writeFieldToJSONFile2;
   Fs.readFieldFromJSONFile = readFieldFromJSONFile ;
 
+  _Path.join = Path.join.bind(Path);
+  _Path.resolve = Path.resolve.bind(Path);
+  _Path.basename = Path.basename.bind(Path);
+  _Path.extname = Path.extname.bind(Path);
+  _Path.dirname = Path.dirname.bind(Path);
+  _Path.relative = Path.relative.bind(Path);
+  _Path.isAbsolute = Path.isAbsolute.bind(Path);
+  _Path.sep = Path.sep;
+
   return {
     commandExistsSync : commandExistsSync,
-    isPathAbsolute: isPathAbsolute,
     cwdStore : cwdStore,
     cwdStepBack: cwdStepBack,
     cwdGoto : cwdGoto,
@@ -475,6 +484,7 @@ function createNodeHelpers (lib) {
     executeCommand: executeCommand,
     executeCommandSync: executeCommandSync,
     Fs : Fs,
+    Path: _Path,
     isPathAbsolute: isPathAbsolute,
     absolutizePath : absolutizePath,
     exit:exit,
