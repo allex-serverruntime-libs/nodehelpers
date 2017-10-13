@@ -251,10 +251,6 @@ function safeReadJSONFileSync (path) {
   }
 }
 
-function remove (path) {
-  return executeCommand ('rm -rf '+path);
-}
-
 function removeSync (path) {
   return executeCommandSync('rm -rf '+path);
 }
@@ -336,7 +332,8 @@ function readFieldFromJSONFile (path, field){
 function createNodeHelpers (lib) {
   'use strict';
 
-  var Q = lib.q;
+  var Q = lib.q,
+    dirdeletion = require('./dirdeleter')(lib);
 
   update_or_get_field = function (data, field, update) {
     var resolved_path = [];
@@ -439,7 +436,16 @@ function createNodeHelpers (lib) {
     return ret;
   }
 
+  function remove (path) {
+    return dirdeletion.deleteDirWithPromise(path);
+  }
+
+  function removeWithCb (path, cb) {
+    dirdeletion.deleteDirWithCB(path, cb);
+  }
+
   Fs.remove = remove;
+  Fs.removeWithCb = removeWithCb;
   Fs.removeSync = removeSync;
   Fs.ensureDir = ensureDir;
   Fs.ensureDirSync = ensureDirSync;
@@ -464,6 +470,7 @@ function createNodeHelpers (lib) {
   _Path.dirname = Path.dirname.bind(Path);
   _Path.relative = Path.relative.bind(Path);
   _Path.isAbsolute = Path.isAbsolute.bind(Path);
+  _Path.parse = Path.parse.bind(Path);
   _Path.sep = Path.sep;
 
   return {
