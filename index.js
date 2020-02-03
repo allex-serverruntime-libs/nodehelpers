@@ -112,8 +112,11 @@ function isPathAbsolute (p) {
   return Path.resolve(p) === Path.normalize(p);
 }
 
-function absolutizePath(p, dir) {
-  return dir ? Path.normalize (Path.resolve(dir, p)) : Path.normalize(Path.resolve(p));
+function absolutizePath(to, from) {
+  from = from ? Path.resolve(from) : Path.resolve();
+  to = to ? Path.resolve(to) : Path.resolve();
+  return Path.normalize(Path.resolve(from, Path.relative(from, to)));
+  //return dir ? Path.normalize (Path.resolve(dir, p)) : Path.normalize(Path.resolve(p));
 }
 
 function cwdGoto (path, store) {
