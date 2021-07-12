@@ -8,6 +8,7 @@ var CWD_HISTORY = [],
   Child_process = require('child_process'),
   BunyanLogger = require('allex_bunyanloggerserverruntimelib'),
   inspect = require('util').inspect,
+  iswindows = process.platform.indexOf('win') == 0,
   executeCommand,
   ensureDir,
   update_or_get_field;
@@ -40,8 +41,8 @@ function executeCommandSync (command, options) {
   return Child_process.execSync(command, options || {});
 }
 
-var SystemRoot = (Os.platform === "win32") ? process.cwd().split(Path.sep)[0] : "/",
-  HomeDir = process.env[(process.platform === 'win32') ? 'USERPROFILE' : 'HOME'],
+var SystemRoot = (iswindows) ? process.cwd().split(Path.sep)[0] : "/",
+  HomeDir = process.env[iswindows ? 'USERPROFILE' : 'HOME'],
   FileLogger = null;
 
 
@@ -255,11 +256,11 @@ function safeReadJSONFileSync (path) {
 }
 
 function removeSync (path) {
-  return executeCommandSync('rm -rf '+path);
+  return executeCommandSync((iswindows ? 'rd /S /Q ' : 'rm -rf ')+path);
 }
 
 Fs.copySync = function (src, dst) {
-  return executeCommandSync('cp -r '+src+' '+dst);
+  return executeCommandSync(iswindows ? 'xcopy /E /H '+src+Path.sep+' '+dst+Path.sep : 'cp -r '+src+' '+dst);
 }
 
 Fs.writeJSONSync = function (file, data, options) {
