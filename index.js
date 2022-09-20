@@ -260,7 +260,7 @@ function removeSync (path) {
 }
 
 Fs.copySync = function (src, dst) {
-  return executeCommandSync(iswindows ? 'xcopy /E /H '+src+Path.sep+' '+dst+Path.sep : 'cp -r '+src+' '+dst);
+  return executeCommandSync(iswindows ? 'xcopy /E /H '+src+' '+dst+Path.sep : 'cp -r '+src+' '+dst);
 }
 
 Fs.writeJSONSync = function (file, data, options) {
