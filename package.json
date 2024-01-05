@@ -1,6 +1,6 @@
 {
   "name": "allex_nodehelpersserverruntimelib",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "AllexJS nodejs helpers",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,6 @@
     "url": "git+https://github.com/allex-serverruntime-libs/nodehelpers.git"
   },
   "dependencies": {
-    "mkdirp": "0.x",
     "colors": "1.x",
     "allex_bunyanloggerserverruntimelib": "1.x"
   },

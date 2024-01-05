@@ -2,15 +2,14 @@ var CWD_HISTORY = [],
   Path = require('path'), 
   Os = require('os'), 
   Fs = require('fs'),
+  FsPromises = require('fs/promises'),
   _Path = {},
   Colors = require('colors/safe'), 
-  mkdirp = require('mkdirp'),
   Child_process = require('child_process'),
   BunyanLogger = require('allex_bunyanloggerserverruntimelib'),
   inspect = require('util').inspect,
   iswindows = process.platform.indexOf('win') == 0,
   executeCommand,
-  ensureDir,
   update_or_get_field;
 
 function CommandError (command, err, stderr, stdout) {
@@ -159,15 +158,35 @@ function gotoPackagePath(store, current) {
 }
 
 function fileExists(p) {
-  if (!Fs.existsSync(p)) return false;
-  var stat = Fs.statSync(p);
+  var stat = Fs.statSync(p, {throwIfNoEntry: false});
+  if (!stat) return false;
   return stat.isFile();
+}
+function fileExistsAsync(p) {
+  var stat = FsPromises.stat(p).then(
+    function (stat) {
+      return stat.isFile();
+    },
+    function (err) {
+      return false;
+    }
+  );
 }
 
 function dirExists (p) {
-  if (!Fs.existsSync(p)) return false;
-  var stat = Fs.statSync(p);
+  var stat = Fs.statSync(p, {throwIfNoEntry: false});
+  if (!stat) return false;
   return stat.isDirectory();
+}
+function dirExistsAsync(p) {
+  var stat = FsPromises.stat(p).then(
+    function (stat) {
+      return stat.isDirectory();
+    },
+    function (err) {
+      return false;
+    }
+  );
 }
 
 function dirIsEmpty (p) {
@@ -191,9 +210,15 @@ function removeDirIfEmpty(p) {
   }
 }
 
-function ensureDirSync (dir) {
-  if (dirExists(dir)) return;
-  return mkdirp.sync(dir);
+function ensureDirSync (dirpath) {
+  Fs.mkdirSync(dirpath, {recursive: true});
+  return dirpath;
+}
+
+function ensureDir (dirpath) {
+  var ret = FsPromises.mkdir(dirpath, {recursive: true}).then(lib.qlib.returner(dirpath));
+  dirpath = null;
+  return ret;
 }
 
 function recreateDir (dir) {
@@ -337,7 +362,7 @@ function createNodeHelpers (lib) {
   'use strict';
 
   var Q = lib.q,
-    dirdeletion = require('./dirdeleter')(lib);
+    dirdeletion = require('./dirdeletercreator')(lib);
 
   update_or_get_field = function (data, field, update) {
     var resolved_path = [];
@@ -421,23 +446,6 @@ function createNodeHelpers (lib) {
       p.stderr.pipe(process.stderr);
     }
     return d.promise;
-  }
-
-  ensureDir = function (dir) {
-    var d, ret;
-    if (dirExists(dir)) return Q.resolve(dir);
-    d = Q.defer();
-    ret = d.promise;
-    mkdirp(dir, null, function (err, made) {
-      if (err) {
-        d.reject(new Error('mkdirp '+dir+' failed on directory '+made));
-      } else {
-        d.resolve(dir);
-      }
-      d = null;
-      dir = null;
-    });
-    return ret;
   }
 
   function remove (path) {
