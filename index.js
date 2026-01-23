@@ -215,10 +215,9 @@ function ensureDirSync (dirpath) {
   return dirpath;
 }
 
-function ensureDir (dirpath) {
-  var ret = FsPromises.mkdir(dirpath, {recursive: true}).then(lib.qlib.returner(dirpath));
-  dirpath = null;
-  return ret;
+async function ensureDir (dirpath) {
+  await FsPromises.mkdir(dirpath, {recursive: true});
+  return dirpath;
 }
 
 function recreateDir (dir) {
