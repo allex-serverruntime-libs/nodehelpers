@@ -1,8 +1,11 @@
 {
   "name": "allex_nodehelpersserverruntimelib",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "AllexJS nodejs helpers",
   "main": "index.js",
+  "engines": {
+    "node": ">=14"
+  },
   "scripts": {
     "test": "mocha"
   },
